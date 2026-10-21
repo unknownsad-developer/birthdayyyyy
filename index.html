@@ -76,6 +76,11 @@ body{margin:0;height:100%;background:var(--bg2);color:var(--text);font-family:'M
 .hearts b{position:absolute;font-weight:400;line-height:1;opacity:0;animation:rise 2.4s ease-out forwards}
 @keyframes rise{0%{opacity:0;transform:translateY(0) scale(.4) rotate(0)}18%{opacity:1}100%{opacity:0;transform:translateY(-26vh) scale(1.1) rotate(var(--r))}}
 @media (prefers-reduced-motion:reduce){.hearts{display:none}}
+.polaroid{margin:.2em auto 1.3em;width:66%;background:#fff;padding:.45em .45em .1em;box-shadow:0 .25em .9em rgba(60,30,30,.28);
+  transform:rotate(var(--tilt,0deg))}
+.polaroid.wide{width:86%}
+.polaroid img{display:block;width:100%;height:auto}
+.polaroid figcaption{text-align:center;padding:.3em 0 .4em;font-size:1.05em;line-height:1.2}
 </style>
 </head>
 <body>
@@ -96,12 +101,13 @@ body{margin:0;height:100%;background:var(--bg2);color:var(--text);font-family:'M
   <div class="letter" id="letter"></div>
   <div class="hearts" id="hearts"></div>
   <div class="footer" id="footer"></div>
+  <audio id="bgm" src="assets/music.mp3" loop preload="auto"></audio>
 </div>
 
 <script>
 /* ============ EDIT YOUR TEXT HERE ============ */
 const CONFIG = {
-  caption:  "When your love letter is a little extra 🥹💖",
+  caption:  "Happy Birthday to My Pakhi💖",
   cardText: "To my love",
   letter: [
     "Happy birthday, my boupaakhii ❤️",
@@ -119,8 +125,15 @@ const CONFIG = {
     "Happy birthday, my Paakhi. My today, my tomorrow, and hopefully, all my forever ❤️",
     "Eti,\nApnar adorer jamaii ❤️"
   ],
+  photos: [   // "after" = shown after that paragraph number (1 = first paragraph)
+    { after: 1,  src: "assets/photo1.jpg", caption: "us ♥",                     tilt: -3 },
+    { after: 3,  src: "assets/photo4.jpg", caption: "sweet little moments",     tilt: 2.5, wide: true },
+    { after: 5,  src: "assets/photo3.jpg", caption: "fav ♥ ♥ ♥ ♥ ♥",            tilt: -2.5 },
+    { after: 8,  src: "assets/photo2.jpg", caption: "want to love you more ♥",  tilt: 3 },
+    { after: 11, src: "assets/photo5.jpg", caption: "my Paakhi ♥",              tilt: -2, wide: true }
+  ],
   footer: "",              // small text at the bottom (leave empty to hide)
-  readSeconds: 0,          // 0 = auto (based on letter length)
+  readSeconds: 10,         // how long the letter stays open (seconds). 0 = auto by length
   loop: true               // false = play once and stay closed
 };
 /* ============================================= */
@@ -130,7 +143,16 @@ const stage = $('stage'), env = $('env'), letter = $('letter'), hearts = $('hear
 $('caption').textContent = CONFIG.caption;
 $('cardText').textContent = CONFIG.cardText;
 $('footer').textContent = CONFIG.footer;
-CONFIG.letter.forEach(t => { const p = document.createElement('p'); p.textContent = t; letter.appendChild(p); });
+CONFIG.letter.forEach((t, i) => {
+  const p = document.createElement('p'); p.textContent = t; letter.appendChild(p);
+  CONFIG.photos.filter(x => x.after === i + 1).forEach(x => {
+    const f = document.createElement('figure'); f.className = 'polaroid' + (x.wide ? ' wide' : '');
+    f.style.setProperty('--tilt', (x.tilt || 0) + 'deg');
+    const im = document.createElement('img'); im.src = x.src; im.alt = x.caption || ''; im.loading = 'eager';
+    const c = document.createElement('figcaption'); c.textContent = x.caption || '';
+    f.append(im, c); letter.appendChild(f);
+  });
+});
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let paused = false;
@@ -168,7 +190,7 @@ async function play() {
     env.classList.add('open');            await sleep(800);
     env.classList.add('up');              await sleep(1000);
     env.classList.add('front');           await sleep(900);
-    stage.classList.add('reading');       await sleep(1000);
+    letter.scrollTop = 0; stage.classList.add('reading');       await sleep(1000);
     await hold();
     stage.classList.remove('reading');    await sleep(900);
     env.classList.remove('front');        await sleep(900);
@@ -178,6 +200,23 @@ async function play() {
     burst(10); await sleep(1800);
   } while (CONFIG.loop);
 }
+
+/* ---- background music (no buttons) ----
+   Tries to start with sound immediately. If the browser blocks that, it starts silently
+   (always allowed) and turns the sound on at the visitor's very first tap, click or key press. */
+const bgm = $('bgm');
+bgm.volume = 0.7;
+let audible = false;
+function unlock() {
+  bgm.muted = false;
+  const r = bgm.play();
+  const ok = () => { audible = true; ['pointerup','touchend','click','keydown'].forEach(e => removeEventListener(e, unlock)); };
+  if (r && r.then) r.then(ok).catch(() => {}); else ok();
+}
+['pointerup', 'touchend', 'click', 'keydown'].forEach(e => addEventListener(e, unlock, { passive: true }));
+bgm.play().then(() => { audible = true; }).catch(() => { bgm.muted = true; bgm.play().catch(() => {}); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && audible && bgm.paused) bgm.play().catch(() => {}); });
+
 play();
 </script>
 </body>
